@@ -1,5 +1,10 @@
-from pydantic import BaseModel, PrivateAttr
+from pydantic import BaseModel, PrivateAttr, model_validator
 from typing import Optional
+from uuid import uuid4
+from .exceptions import UserAccountException
+from .values import UserUpdateData
+from .validators import UserAccountValidator
+from src.user.core.util import PasswordChecker, PasswordHasher
 
 class UserAccount(BaseModel):
     id: str
@@ -9,34 +14,43 @@ class UserAccount(BaseModel):
     photo: Optional[str] = None
     facebook: Optional[str] = None
     _hashed_password: Optional[str] = PrivateAttr(default=None)
+    _password_checker: PasswordChecker = PrivateAttr(default=PasswordChecker())
+    _password_hasher: PasswordHasher = PrivateAttr(default=PasswordHasher())
+    _validator: UserAccountValidator = PrivateAttr(default=UserAccountValidator())
 
     @classmethod
     def create(cls, *, name: str, username: str) -> "UserAccount":
-        raise NotImplementedError("Method create not implemented")
+        return cls(
+            id=str(uuid4()),
+            name=name,
+            username=username
+        )
+    
+    @model_validator(mode="after")
+    def _validate(self) -> "UserAccount":
+        self._validator.validate_user(self)
+        return self
     
     def check_password(self, password: str) -> bool:
-        raise NotImplementedError("Method check_password not implemented")
+        if self._hashed_password is None:
+            raise UserAccountException.without_password(self.username)
+        return self._password_checker.check(self._hashed_password, password)
 
     def get_hashed_password(self) -> Optional[str]:
-        raise NotImplementedError("Method get_hashed_password not implemented")
+        return self._hashed_password
 
     def save(self) -> None:
         raise NotImplementedError("Method save not implemented")
-
-    def set_name(self, name: str) -> None:
-        raise NotImplementedError("Method set_name not implemented")
     
-    def set_email(self, email: str) -> None:
-        raise NotImplementedError("Method set_email not implemented")
-
-    def set_username(self, username: str) -> None:
-        raise NotImplementedError("Method set_username not implemented")
-
     def set_password(self, password: str) -> None:
-        raise NotImplementedError("Method set_password not implemented")
+        if not self._validator.validate_password(password):
+            raise UserAccountException.invalid_password()
+        self._hashed_password = self._password_hasher.hash(password)
 
-    def set_photo(self, photo: str) -> None:
-        raise NotImplementedError("Method set_photo not implemented")
-
-    def set_facebook(self, facebook: str) -> None:
-        raise NotImplementedError("Method set_facebook not implemented")
+    def update(self, data: UserUpdateData) -> None:
+        for field, value in data.model_dump(exclude_none=True).items():
+            if field != "password":
+                setattr(self, field, value)
+        if data.password is not None:
+            self.set_password(data.password)
+        self._validator.validate_user(self)
