@@ -27,3 +27,7 @@ class UserAccountException(Exception):
     @classmethod
     def invalid_password(cls) -> "UserAccountException":
         return cls("La contraseña proporcionada no es válida", 6)
+    
+    @classmethod
+    def whithout_account(cls) -> "UserAccountException":
+        return cls("No se puede crear al usuario sin una contraseña o una cuenta asociada", 7)

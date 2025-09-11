@@ -2,6 +2,7 @@ from pydantic import BaseModel, PrivateAttr, model_validator
 from typing import Optional
 from uuid import uuid4
 from .exceptions import UserAccountException
+from .events import UserCreated
 from .values import UserUpdateData
 from .validators import UserAccountValidator
 from src.user.core.util import PasswordChecker, PasswordHasher
@@ -40,7 +41,9 @@ class UserAccount(BaseModel):
         return self._hashed_password
 
     def save(self) -> None:
-        raise NotImplementedError("Method save not implemented")
+        if not self._can_save():
+            raise UserAccountException.whithout_account()
+        UserCreated(self).dispatch()
     
     def set_password(self, password: str) -> None:
         if not self._validator.validate_password(password):
@@ -54,3 +57,6 @@ class UserAccount(BaseModel):
         if data.password is not None:
             self.set_password(data.password)
         self._validator.validate_user(self)
+    
+    def _can_save(self) -> bool:
+        return self.email is not None or self._hashed_password is not None or self.facebook is not None
