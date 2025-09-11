@@ -8,7 +8,7 @@ class Event(ABC):
         EventDispatcher.dispatch_event(self)
 
 class EventListener(ABC, Generic[E]):
-    listen_to: Type[E]
+    listen_to: List[Type[Event]]
 
     def __init__(self) -> None:
         EventDispatcher.register_listener(self)
@@ -21,7 +21,8 @@ class EventDispatcher:
 
     @classmethod
     def register_listener(cls, listener: EventListener[E]) -> None:
-        cls.listeners.setdefault(listener.listen_to, []).append(listener)
+        for event_type in listener.listen_to:
+            cls.listeners.setdefault(event_type, []).append(listener)
 
     @classmethod
     def dispatch_event(cls, event: Event) -> None:
