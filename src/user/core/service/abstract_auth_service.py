@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from .dto import UserAccountDTO, AuthCommand, ChangeUserInfoCommand, ChangePasswordCommand
+from .dto import UserAccountDTO, AuthCommand, ChangeUserInfoCommand, ChangePasswordCommand, UserIdentifier
 
 class AbstractAuthService(ABC):
     @abstractmethod
@@ -21,3 +21,9 @@ class AbstractUserAccountService(ABC):
     
     @abstractmethod
     def change_password(self, command: ChangePasswordCommand) -> None: ...
+
+    @abstractmethod
+    def send_password_reset_code(self, user_identifier: UserIdentifier) -> None: ...
+
+    @abstractmethod
+    def get_user_data(self, identifier: UserIdentifier) -> UserAccountDTO: ...
